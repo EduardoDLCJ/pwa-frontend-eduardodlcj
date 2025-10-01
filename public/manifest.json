@@ -1,0 +1,24 @@
+{
+    "id": "/",
+    "name": "app pwa",
+    "short_name": "pwa",
+    "lang": "es",
+    "dir": "ltr",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "display_override": ["standalone", "minimal-ui", "browser"],
+    "background_color": "#ffffff",
+    "theme_color": "#000000",
+    "orientation": "portrait-primary",
+    "categories": ["productivity", "utilities"],
+    "icons": [
+        {
+            "src": "/favicon.ico",
+            "sizes": "16x16 32x32 48x48",
+            "type": "image/x-icon"
+        }
+    ],
+    "prefer_related_applications": false,
+    "handle_links": "preferred"
+}
