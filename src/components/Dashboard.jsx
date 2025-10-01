@@ -174,6 +174,14 @@ const Dashboard = () => {
       <header className="dashboard-header">
         <h1>Dashboard</h1>
         <div className="user-info">
+          <button 
+            id="install-button" 
+            className="install-btn" 
+            style={{display: 'none', marginRight: '10px'}}
+            title="Instalar aplicación"
+          >
+            📱 Instalar App
+          </button>
           <span>Bienvenido, {user.username}</span>
           <button onClick={handleLogout} className="logout-button">
             Cerrar Sesión

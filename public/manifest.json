@@ -1,7 +1,8 @@
 {
     "id": "/",
-    "name": "app pwa",
-    "short_name": "pwa",
+    "name": "App PWA",
+    "short_name": "PWA",
+    "description": "Aplicación web progresiva para gestión de dispositivos móviles",
     "lang": "es",
     "dir": "ltr",
     "start_url": "/",
@@ -17,6 +18,18 @@
             "src": "/favicon.ico",
             "sizes": "16x16 32x32 48x48",
             "type": "image/x-icon"
+        },
+        {
+            "src": "/icon-192.svg",
+            "sizes": "192x192",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/icon-512.svg",
+            "sizes": "512x512",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
         }
     ],
     "prefer_related_applications": false,
