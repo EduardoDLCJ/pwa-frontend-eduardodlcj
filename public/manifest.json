@@ -19,30 +19,6 @@
             "sizes": "16x16 32x32 48x48",
             "type": "image/x-icon",
             "purpose": "any"
-        },
-        {
-            "src": "/favicon.ico",
-            "sizes": "192x192",
-            "type": "image/x-icon",
-            "purpose": "any"
-        },
-        {
-            "src": "/favicon.ico",
-            "sizes": "512x512",
-            "type": "image/x-icon",
-            "purpose": "any"
-        },
-        {
-            "src": "/icon-192.svg",
-            "sizes": "192x192",
-            "type": "image/svg+xml",
-            "purpose": "maskable"
-        },
-        {
-            "src": "/icon-512.svg",
-            "sizes": "512x512",
-            "type": "image/svg+xml",
-            "purpose": "maskable"
         }
     ],
     "prefer_related_applications": false,
