@@ -184,7 +184,7 @@ const Dashboard = () => {
       <main className="dashboard-content">
         <div className="welcome-card">
           <h2>Catálogo de teléfonos</h2>
-          <p>Explora modelos, compara especificaciones y simula una compra estilo Kimovil.</p>
+          <p>Explora modelos, compra y compara especificaciones.</p>
         </div>
 
         <section className="filters">
