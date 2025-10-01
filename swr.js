@@ -7,6 +7,7 @@ const PRECACHE_URLS = [
   '/index.html',
   '/manifest.json',
   '/favicon.ico',
+  '/tienda.png',
   '/vite.svg',
   '/icon-192.svg',
   '/icon-512.svg',
