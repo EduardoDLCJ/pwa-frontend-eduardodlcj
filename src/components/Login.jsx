@@ -61,6 +61,17 @@ const Login = () => {
     }
   };
 
+
+  const prueba = () => {
+    const request = window.indexedDB.open('pwa-db', 1);
+    request.onsuccess = (event) => {
+      const database = event.target.result;
+        const transaction = database.transaction('tabla', 'readwrite');
+        const store = transaction.objectStore('tabla');
+        const addRequest = store.add({ name: 'Prueba', age: 20 });    
+  }
+}
+
   return (
     <div className="login-container">
       <div className="login-card">
@@ -97,6 +108,8 @@ const Login = () => {
           <button type="submit" className="login-button" disabled={loading}>
             {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </button>
+
+          <button type="button" className="login-button" onClick={prueba}>Prueba</button>
         </form>
 
         <div className="demo-credentials">

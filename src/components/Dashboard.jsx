@@ -17,6 +17,12 @@ const Dashboard = () => {
   const [priceFilter, setPriceFilter] = useState('');
   const [selectedPhone, setSelectedPhone] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
+  //const BASE_URL = 'http://192.168.100.15:4001';
+  const BASE_URL = 'https://pwa-backend-knbm.onrender.com';
+  const [isCartOpen, setIsCartOpen] = useState(false);
+  const [cart, setCart] = useState(null);
+  const [isCartLoading, setIsCartLoading] = useState(false);
+  const [cartError, setCartError] = useState('');
 
   useEffect(() => {
     // Verificar si hay usuario logueado
@@ -146,7 +152,7 @@ const Dashboard = () => {
       const matchesPrice = !priceFilter ||
         (priceFilter === 'lt500' && p.price < 500) ||
         (priceFilter === '500to1000' && p.price >= 500 && p.price <= 1000) ||
-        (priceFilter === 'gt1000' && p.price > 1000);
+        (priceFilter === 'gt1000' && p.price >= 1000);
       return matchesQuery && matchesBrand && matchesPrice;
     });
   }, [phones, query, brandFilter, priceFilter]);
@@ -165,6 +171,125 @@ const Dashboard = () => {
     alert(`Compra simulada: ${phone.name} por $${phone.price}`);
   };
 
+  const handleAddToCart = async (phone, quantity = 1) => {
+    try {
+      const userData = localStorage.getItem('user');
+      if (!userData) {
+        navigate('/login');
+        return;
+      }
+      const currentUser = JSON.parse(userData);
+      const userId = currentUser._id || currentUser.id;
+      if (!userId) {
+        alert('No se encontró el ID de usuario. Inicia sesión nuevamente.');
+        return;
+      }
+
+      const payload = {
+        userId,
+        items: [
+          {
+            productId: phone.id,
+            quantity
+          }
+        ]
+      };
+
+      // Siempre encolar en IndexedDB - el SW se encargará del envío
+      if (window.enqueuePendingCart) {
+        await window.enqueuePendingCart({ baseUrl: BASE_URL, payload });
+        
+        if (navigator.onLine === false) {
+          alert('Sin conexión. Se guardó en cola y se enviará al reconectar.');
+        } else {
+          alert('Producto agregado al carrito');
+        }
+        
+        // No cargar carrito del servidor inmediatamente ya que el SW lo sincronizará
+        // Solo actualizar el contador local si es posible
+        if (cart && Array.isArray(cart.items)) {
+          const existingItem = cart.items.find(item => item.productId === phone.id);
+          if (existingItem) {
+            existingItem.quantity = (Number(existingItem.quantity) || 0) + quantity;
+          } else {
+            cart.items.push({ productId: phone.id, quantity });
+          }
+          setCart({ ...cart });
+        }
+      } else {
+        alert('Error: No se pudo acceder al almacenamiento local');
+      }
+    } catch (error) {
+      console.error('Error al agregar al carrito:', error);
+      alert(error.message || 'Error al agregar al carrito');
+    }
+  };
+
+  const getCurrentUserId = () => {
+    const userData = localStorage.getItem('user');
+    if (!userData) return null;
+    const currentUser = JSON.parse(userData);
+    return currentUser._id || currentUser.id || null;
+  };
+
+  const loadCart = async () => {
+    try {
+      setCartError('');
+      setIsCartLoading(true);
+      const userId = getCurrentUserId();
+      if (!userId) {
+        setCart(null);
+        setIsCartLoading(false);
+        return;
+      }
+      const res = await fetch(`${BASE_URL}/carrito/${userId}`);
+      if (res.status === 404) {
+        setCart({ userId, items: [], updatedAt: new Date().toISOString() });
+        setIsCartLoading(false);
+        return;
+      }
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || 'Error al obtener el carrito');
+      }
+      setCart(data);
+    } catch (err) {
+      console.error('Error cargando carrito:', err);
+      setCartError(err.message || 'Error al obtener el carrito');
+    } finally {
+      setIsCartLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // cargar carrito al tener usuario
+    if (user) {
+      loadCart();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
+
+  // Escuchar mensajes del Service Worker para actualizar el carrito
+  useEffect(() => {
+    const handleMessage = (event) => {
+      if (event.data && event.data.type === 'CART_SYNCED') {
+        // Recargar carrito cuando el SW sincronice exitosamente
+        loadCart();
+      }
+    };
+
+    navigator.serviceWorker?.addEventListener('message', handleMessage);
+    
+    return () => {
+      navigator.serviceWorker?.removeEventListener('message', handleMessage);
+    };
+  }, []);
+
+  const cartCount = useMemo(() => {
+    if (!cart || !Array.isArray(cart.items)) return 0;
+    return cart.items.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
+  }, [cart]);
+
   if (!user) {
     return <div className="loading">Cargando...</div>;
   }
@@ -181,6 +306,14 @@ const Dashboard = () => {
             title="Instalar aplicación"
           >
             📱 Instalar App
+          </button>
+          <button
+            className="btn"
+            style={{ marginRight: '10px' }}
+            onClick={() => { setIsCartOpen(true); loadCart(); }}
+            aria-label={`Abrir carrito con ${cartCount} artículos`}
+          >
+            🛒 Carrito{cartCount > 0 ? ` (${cartCount})` : ''}
           </button>
           <span>Bienvenido, {user.username}</span>
           <button onClick={handleLogout} className="logout-button">
@@ -245,6 +378,7 @@ const Dashboard = () => {
                 </ul>
                 <div className="card-actions">
                   <button className="btn primary" onClick={() => handleBuy(phone)}>Comprar</button>
+                  <button className="btn" onClick={() => handleAddToCart(phone, 1)}>Agregar al carrito</button>
                   <button className="btn ghost" onClick={() => openDetail(phone)}>Ver detalles</button>
                 </div>
               </div>
@@ -284,7 +418,62 @@ const Dashboard = () => {
                 </table>
                 <div className="detail-actions">
                   <button className="btn primary" onClick={() => handleBuy(selectedPhone)}>Comprar ahora</button>
+                  <button className="btn" onClick={() => handleAddToCart(selectedPhone, 1)}>Agregar al carrito</button>
                   <button className="btn" onClick={closeDetail}>Cerrar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {isCartOpen && (
+        <div className="modal" role="dialog" aria-modal="true">
+          <div className="modal-content">
+            <button className="modal-close" aria-label="Cerrar" onClick={() => setIsCartOpen(false)}>×</button>
+            <div className="detail">
+              <div className="detail-body">
+                <h2>Tu carrito</h2>
+                {isCartLoading && <div className="loading">Cargando carrito...</div>}
+                {cartError && <div className="error">{cartError}</div>}
+                {!isCartLoading && !cartError && (
+                  <>
+                    {(!cart || cart.items.length === 0) && (
+                      <div className="empty">No hay productos en tu carrito.</div>
+                    )}
+                    {cart && cart.items.length > 0 && (
+                      <table className="specs-table">
+                        <thead>
+                          <tr>
+                            <th>Producto</th>
+                            <th>Cantidad</th>
+                            <th>Precio</th>
+                            <th>Subtotal</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {cart.items.map((item, idx) => {
+                            const phone = phones.find(p => p.id === item.productId);
+                            const name = phone?.name || item.productId;
+                            const price = phone?.price || 0;
+                            const quantity = Number(item.quantity) || 0;
+                            const subtotal = price * quantity;
+                            return (
+                              <tr key={`${item.productId}-${idx}`}>
+                                <td>{name}</td>
+                                <td>{quantity}</td>
+                                <td>{price > 0 ? `$${price}` : '-'}</td>
+                                <td>{price > 0 ? `$${subtotal}` : '-'}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    )}
+                  </>
+                )}
+                <div className="detail-actions" style={{ marginTop: '12px' }}>
+                  <button className="btn" onClick={() => setIsCartOpen(false)}>Cerrar</button>
                 </div>
               </div>
             </div>
