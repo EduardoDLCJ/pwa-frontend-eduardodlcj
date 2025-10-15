@@ -49,6 +49,40 @@ const Login = () => {
         localStorage.setItem('user', JSON.stringify(data.user));
         console.log(data.user);
         navigate('/dashboard');
+
+        // Programar notificación 2s después de iniciar sesión
+        try {
+          const BASE_URL = 'https://pwa-backend-knbm.onrender.com';
+          // Asegurar suscripción push si no existe
+          if ('serviceWorker' in navigator) {
+            const registration = await navigator.serviceWorker.ready;
+            if (Notification.permission !== 'granted') {
+              await Notification.requestPermission();
+            }
+            if (window.requestPushPermissionAndSubscribe) {
+              await window.requestPushPermissionAndSubscribe();
+            }
+          }
+          setTimeout(async () => {
+            try {
+              await fetch(`${BASE_URL}/notificaciones/notify`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  title: '¡Bienvenido!',
+                  body: 'Inicio de sesión exitoso',
+                  icon: '/icon-192.svg',
+                  url: '/'
+                })
+              });
+            } catch (e) {
+              // Silenciar error de notificación para no afectar UX
+            }
+          }, 2000);
+        } catch (e) {
+          // Silenciar errores de suscripción/notify post-login
+          console.warn('Post-login notify error:', e?.message || e);
+        }
       } else {
         // Error del servidor
         setError(data.message || 'Error al iniciar sesión');
