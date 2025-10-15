@@ -140,15 +140,6 @@ self.addEventListener('message', (event) => {
     console.log('[SW] 📨 Solicitud de procesamiento de carritos pendientes');
     processPendingCarts();
   }
-  
-  if (event.data && event.data.type === 'SHOW_LOCAL_NOTIFICATION') {
-    const { title, body, icon, data } = event.data.payload || {};
-    self.registration.showNotification(title || 'Notificación', {
-      body: body || '',
-      icon: icon || '/icon-192.svg',
-      data: data || {}
-    });
-  }
 });
 
 // Función para procesar la cola de carritos pendientes
@@ -207,45 +198,3 @@ self.addEventListener('offline', () => {
 });
 
 // SW cargado
-
-// Manejar eventos Push
-self.addEventListener('push', (event) => {
-  console.log('[SW] Push event received:', event);
-  try {
-    const data = event.data ? event.data.json() : {};
-    console.log('[SW] Push data:', data);
-    const title = data.title || 'Nueva notificación';
-    const options = {
-      body: data.body || '',
-      icon: data.icon || '/icon-192.svg',
-      data: { url: data.url || '/' }
-    };
-    console.log('[SW] Showing notification:', title, options);
-    event.waitUntil(self.registration.showNotification(title, options));
-  } catch (e) {
-    console.error('[SW] Error in push handler:', e);
-    event.waitUntil(self.registration.showNotification('Nueva notificación', {
-      body: 'Tienes un nuevo mensaje',
-      icon: '/icon-192.svg'
-    }));
-  }
-});
-
-// Click en la notificación
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  const targetUrl = (event.notification && event.notification.data && event.notification.data.url) || '/';
-  event.waitUntil(
-    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
-      for (const client of clientList) {
-        if ('focus' in client) {
-          client.navigate(targetUrl);
-          return client.focus();
-        }
-      }
-      if (self.clients.openWindow) {
-        return self.clients.openWindow(targetUrl);
-      }
-    })
-  );
-});
