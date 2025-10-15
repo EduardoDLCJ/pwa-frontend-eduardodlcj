@@ -17,7 +17,7 @@ const Dashboard = () => {
   const [priceFilter, setPriceFilter] = useState('');
   const [selectedPhone, setSelectedPhone] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  //const BASE_URL = 'http://192.168.100.15:4001';
+  //const BASE_URL = 'https://pwa-backend-knbm.onrender.com';
   const BASE_URL = 'https://pwa-backend-knbm.onrender.com';
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cart, setCart] = useState(null);
@@ -306,6 +306,14 @@ const Dashboard = () => {
             title="Instalar aplicación"
           >
             📱 Instalar App
+          </button>
+          <button
+            className="btn"
+            style={{ marginRight: '10px' }}
+            onClick={() => window.requestPushPermissionAndSubscribe && window.requestPushPermissionAndSubscribe()}
+            title="Activar notificaciones push"
+          >
+            🔔 Activar notificaciones
           </button>
           <button
             className="btn"
