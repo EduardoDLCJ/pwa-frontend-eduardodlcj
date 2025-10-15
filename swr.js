@@ -210,5 +210,40 @@ self.addEventListener("push", (event) => {
     badge: "/vite.svg",
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+// Manejar clics en notificaciones
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notificación clickeada:', event);
+  
+  event.notification.close();
+  
+  if (event.action === 'open-cart') {
+    // Abrir el carrito cuando se hace clic en la acción
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window' }).then((clients) => {
+        // Si hay una ventana abierta, enfocarla y enviar mensaje para abrir carrito
+        if (clients.length > 0) {
+          const client = clients[0];
+          client.focus();
+          client.postMessage({ type: 'OPEN_CART' });
+        } else {
+          // Si no hay ventana abierta, abrir una nueva
+          self.clients.openWindow('/');
+        }
+      })
+    );
+  } else {
+    // Click general en la notificación
+    event.waitUntil(
+      self.clients.matchAll({ type: 'window' }).then((clients) => {
+        if (clients.length > 0) {
+          clients[0].focus();
+        } else {
+          self.clients.openWindow('/');
+        }
+      })
+    );
+  }
 });

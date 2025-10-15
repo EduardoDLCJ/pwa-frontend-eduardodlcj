@@ -39,29 +39,54 @@ const Dashboard = () => {
   };
 
   // Función para mostrar notificación cuando se agrega al carrito
-  const showCartNotification = (phoneName, quantity = 1) => {
+  const showCartNotification = async (phoneName, quantity = 1) => {
     if ('Notification' in window && Notification.permission === 'granted') {
-      const notification = new Notification('🛒 Producto agregado al carrito', {
-        body: `${phoneName} (${quantity} unidad${quantity > 1 ? 'es' : ''}) se agregó a tu carrito`,
-        icon: '/icon-192.svg',
-        badge: '/icon-192.svg',
-        tag: 'cart-notification',
-        requireInteraction: false,
-        silent: false
-      });
+      try {
+        // Usar ServiceWorkerRegistration.showNotification para compatibilidad móvil
+        if ('serviceWorker' in navigator) {
+          const registration = await navigator.serviceWorker.ready;
+          await registration.showNotification('🛒 Producto agregado al carrito', {
+            body: `${phoneName} (${quantity} unidad${quantity > 1 ? 'es' : ''}) se agregó a tu carrito`,
+            icon: '/icon-192.svg',
+            badge: '/icon-192.svg',
+            tag: 'cart-notification',
+            requireInteraction: false,
+            silent: false,
+            actions: [
+              {
+                action: 'open-cart',
+                title: 'Ver carrito'
+              }
+            ]
+          });
+        } else {
+          // Fallback para navegadores que no soportan service worker
+          const notification = new Notification('🛒 Producto agregado al carrito', {
+            body: `${phoneName} (${quantity} unidad${quantity > 1 ? 'es' : ''}) se agregó a tu carrito`,
+            icon: '/icon-192.svg',
+            badge: '/icon-192.svg',
+            tag: 'cart-notification',
+            requireInteraction: false,
+            silent: false
+          });
 
-      // Cerrar la notificación después de 3 segundos
-      setTimeout(() => {
-        notification.close();
-      }, 3000);
+          // Cerrar la notificación después de 3 segundos
+          setTimeout(() => {
+            notification.close();
+          }, 3000);
 
-      // Opcional: agregar click handler para abrir el carrito
-      notification.onclick = () => {
-        window.focus();
-        setIsCartOpen(true);
-        loadCart();
-        notification.close();
-      };
+          // Click handler para abrir el carrito
+          notification.onclick = () => {
+            window.focus();
+            setIsCartOpen(true);
+            loadCart();
+            notification.close();
+          };
+        }
+      } catch (error) {
+        console.error('Error mostrando notificación:', error);
+        // Fallback silencioso - no mostrar error al usuario
+      }
     }
   };
 
@@ -354,26 +379,46 @@ const Dashboard = () => {
 
   // Escuchar mensajes del Service Worker para actualizar el carrito
   useEffect(() => {
-    const handleMessage = (event) => {
+    const handleMessage = async (event) => {
       if (event.data && event.data.type === 'CART_SYNCED') {
         // Recargar carrito cuando el SW sincronice exitosamente
         loadCart();
         
         // Mostrar notificación de sincronización exitosa
         if ('Notification' in window && Notification.permission === 'granted') {
-          const notification = new Notification('✅ Carrito sincronizado', {
-            body: 'Los productos se han sincronizado correctamente con el servidor',
-            icon: '/icon-192.svg',
-            badge: '/icon-192.svg',
-            tag: 'cart-sync-notification',
-            requireInteraction: false,
-            silent: false
-          });
+          try {
+            if ('serviceWorker' in navigator) {
+              const registration = await navigator.serviceWorker.ready;
+              await registration.showNotification('✅ Carrito sincronizado', {
+                body: 'Los productos se han sincronizado correctamente con el servidor',
+                icon: '/icon-192.svg',
+                badge: '/icon-192.svg',
+                tag: 'cart-sync-notification',
+                requireInteraction: false,
+                silent: false
+              });
+            } else {
+              const notification = new Notification('✅ Carrito sincronizado', {
+                body: 'Los productos se han sincronizado correctamente con el servidor',
+                icon: '/icon-192.svg',
+                badge: '/icon-192.svg',
+                tag: 'cart-sync-notification',
+                requireInteraction: false,
+                silent: false
+              });
 
-          setTimeout(() => {
-            notification.close();
-          }, 3000);
+              setTimeout(() => {
+                notification.close();
+              }, 3000);
+            }
+          } catch (error) {
+            console.error('Error mostrando notificación de sincronización:', error);
+          }
         }
+      } else if (event.data && event.data.type === 'OPEN_CART') {
+        // Abrir carrito cuando se hace clic en la notificación
+        setIsCartOpen(true);
+        loadCart();
       }
     };
 
