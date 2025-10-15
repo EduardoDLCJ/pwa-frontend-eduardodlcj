@@ -210,16 +210,20 @@ self.addEventListener('offline', () => {
 
 // Manejar eventos Push
 self.addEventListener('push', (event) => {
+  console.log('[SW] Push event received:', event);
   try {
     const data = event.data ? event.data.json() : {};
+    console.log('[SW] Push data:', data);
     const title = data.title || 'Nueva notificación';
     const options = {
       body: data.body || '',
       icon: data.icon || '/icon-192.svg',
       data: { url: data.url || '/' }
     };
+    console.log('[SW] Showing notification:', title, options);
     event.waitUntil(self.registration.showNotification(title, options));
   } catch (e) {
+    console.error('[SW] Error in push handler:', e);
     event.waitUntil(self.registration.showNotification('Nueva notificación', {
       body: 'Tienes un nuevo mensaje',
       icon: '/icon-192.svg'
