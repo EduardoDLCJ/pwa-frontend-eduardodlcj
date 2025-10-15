@@ -3,6 +3,56 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App.jsx'
 
+// Obtener clave pública VAPID del backend
+async function getVapidPublicKey(baseUrl) {
+  const res = await fetch(`${baseUrl}/notificaciones/vapidPublicKey`);
+  if (!res.ok) throw new Error('No se pudo obtener VAPID public key');
+  const data = await res.json();
+  return data.publicKey;
+}
+
+// Convertir Base64URL a Uint8Array
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/-/g, '+')
+    .replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+// Suscribir usuario a Push y enviar la suscripción al backend
+async function subscribeUserToPush(registration) {
+  try {
+    const BASE_URL = 'https://pwa-backend-knbm.onrender.com';
+    const vapidPublicKey = await getVapidPublicKey(BASE_URL);
+    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
+
+    const existing = await registration.pushManager.getSubscription();
+    if (existing) return existing;
+
+    const subscription = await registration.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedVapidKey
+    });
+
+    await fetch(`${BASE_URL}/notificaciones/subscribe`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(subscription)
+    });
+
+    return subscription;
+  } catch (err) {
+    console.error('Error suscribiendo a Push:', err);
+    throw err;
+  }
+}
+
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/swr.js')
@@ -171,56 +221,6 @@ window.addEventListener('online', () => {
 
 // Intentar despachar cola al iniciar
 flushPendingCartInternal();
-
-// Obtener clave pública VAPID del backend
-async function getVapidPublicKey(baseUrl) {
-  const res = await fetch(`${baseUrl}/notificaciones/vapidPublicKey`);
-  if (!res.ok) throw new Error('No se pudo obtener VAPID public key');
-  const data = await res.json();
-  return data.publicKey;
-}
-
-// Convertir Base64URL a Uint8Array
-function urlBase64ToUint8Array(base64String) {
-  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding)
-    .replace(/-/g, '+')
-    .replace(/_/g, '/');
-  const rawData = window.atob(base64);
-  const outputArray = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    outputArray[i] = rawData.charCodeAt(i);
-  }
-  return outputArray;
-}
-
-// Suscribir usuario a Push y enviar la suscripción al backend
-async function subscribeUserToPush(registration) {
-  try {
-    const BASE_URL = 'https://pwa-backend-knbm.onrender.com';
-    const vapidPublicKey = await getVapidPublicKey(BASE_URL);
-    const convertedVapidKey = urlBase64ToUint8Array(vapidPublicKey);
-
-    const existing = await registration.pushManager.getSubscription();
-    if (existing) return existing;
-
-    const subscription = await registration.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: convertedVapidKey
-    });
-
-    await fetch(`${BASE_URL}/notificaciones/subscribe`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(subscription)
-    });
-
-    return subscription;
-  } catch (err) {
-    console.error('Error suscribiendo a Push:', err);
-    throw err;
-  }
-}
 
 // Exponer función para UI
 window.requestPushPermissionAndSubscribe = async function requestPushPermissionAndSubscribe() {
