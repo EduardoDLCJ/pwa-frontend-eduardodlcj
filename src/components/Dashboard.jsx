@@ -17,7 +17,7 @@ const Dashboard = () => {
   const [priceFilter, setPriceFilter] = useState('');
   const [selectedPhone, setSelectedPhone] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  //const BASE_URL = 'https://pwa-backend-knbm.onrender.com1';
+  //const BASE_URL = 'https://pwa-backend-knbm.onrender.com';
   const BASE_URL = 'https://pwa-backend-knbm.onrender.com';
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cart, setCart] = useState(null);
