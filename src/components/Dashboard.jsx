@@ -17,13 +17,88 @@ const Dashboard = () => {
   const [priceFilter, setPriceFilter] = useState('');
   const [selectedPhone, setSelectedPhone] = useState(null);
   const [isDetailOpen, setIsDetailOpen] = useState(false);
-  //const BASE_URL = 'http://192.168.100.15:4001';
-  const BASE_URL = 'https://pwa-backend-knbm.onrender.com';
+  //const BASE_URL = 'https://pwa-backend-knbm.onrender.com1';
+  const BASE_URL = 'https://pwa-backend-knbm.onrender.com1';
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cart, setCart] = useState(null);
   const [isCartLoading, setIsCartLoading] = useState(false);
   const [cartError, setCartError] = useState('');
+  const [notificationsEnabled, setNotificationsEnabled] = useState(false);
 
+  const publicVapidKey = "BBR2W5ZrA8jgnh1dB_vbVAzu4PVS5t81sXyv_B-bdbkUCUd0d-ZglMsXTHcJTIRa7RY9erDAcm0NlkYkZnZ2DgY";
+
+  // Función para solicitar permisos de notificación
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      const granted = permission === 'granted';
+      setNotificationsEnabled(granted);
+      return granted;
+    }
+    return false;
+  };
+
+  // Función para mostrar notificación cuando se agrega al carrito
+  const showCartNotification = (phoneName, quantity = 1) => {
+    if ('Notification' in window && Notification.permission === 'granted') {
+      const notification = new Notification('🛒 Producto agregado al carrito', {
+        body: `${phoneName} (${quantity} unidad${quantity > 1 ? 'es' : ''}) se agregó a tu carrito`,
+        icon: '/icon-192.svg',
+        badge: '/icon-192.svg',
+        tag: 'cart-notification',
+        requireInteraction: false,
+        silent: false
+      });
+
+      // Cerrar la notificación después de 3 segundos
+      setTimeout(() => {
+        notification.close();
+      }, 3000);
+
+      // Opcional: agregar click handler para abrir el carrito
+      notification.onclick = () => {
+        window.focus();
+        setIsCartOpen(true);
+        loadCart();
+        notification.close();
+      };
+    }
+  };
+
+
+  useEffect(() => {
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.ready.then(async (reg) => {
+        const subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(publicVapidKey),
+        });
+  
+        await fetch(`${BASE_URL}/api/subscribe`, {
+          method: "POST",
+          body: JSON.stringify(subscription),
+          headers: { "Content-Type": "application/json" },
+        });
+  
+        console.log("Suscripción enviada al servidor");
+      });
+    }
+  }, []);
+  
+  function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding)
+      .replace(/-/g, "+")
+      .replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  
   useEffect(() => {
     // Verificar si hay usuario logueado
     const userData = localStorage.getItem('user');
@@ -32,6 +107,11 @@ const Dashboard = () => {
       return;
     }
     setUser(JSON.parse(userData));
+
+    // Verificar estado inicial de notificaciones
+    if ('Notification' in window) {
+      setNotificationsEnabled(Notification.permission === 'granted');
+    }
   }, [navigate]);
 
   const handleLogout = () => {
@@ -204,6 +284,9 @@ const Dashboard = () => {
         } else {
           alert('Producto agregado al carrito');
         }
+
+        // Mostrar notificación del navegador
+        showCartNotification(phone.name, quantity);
         
         // No cargar carrito del servidor inmediatamente ya que el SW lo sincronizará
         // Solo actualizar el contador local si es posible
@@ -275,6 +358,22 @@ const Dashboard = () => {
       if (event.data && event.data.type === 'CART_SYNCED') {
         // Recargar carrito cuando el SW sincronice exitosamente
         loadCart();
+        
+        // Mostrar notificación de sincronización exitosa
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const notification = new Notification('✅ Carrito sincronizado', {
+            body: 'Los productos se han sincronizado correctamente con el servidor',
+            icon: '/icon-192.svg',
+            badge: '/icon-192.svg',
+            tag: 'cart-sync-notification',
+            requireInteraction: false,
+            silent: false
+          });
+
+          setTimeout(() => {
+            notification.close();
+          }, 3000);
+        }
       }
     };
 
@@ -314,6 +413,14 @@ const Dashboard = () => {
             aria-label={`Abrir carrito con ${cartCount} artículos`}
           >
             🛒 Carrito{cartCount > 0 ? ` (${cartCount})` : ''}
+          </button>
+          <button
+            className="btn"
+            style={{ marginRight: '10px' }}
+            onClick={requestNotificationPermission}
+            title={notificationsEnabled ? "Notificaciones habilitadas" : "Habilitar notificaciones"}
+          >
+            {notificationsEnabled ? '🔔' : '🔕'} Notificaciones
           </button>
           <span>Bienvenido, {user.username}</span>
           <button onClick={handleLogout} className="logout-button">

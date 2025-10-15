@@ -47,6 +47,9 @@ const Login = () => {
       if (response.ok) {
         // Login exitoso
         localStorage.setItem('user', JSON.stringify(data.user));
+
+        localStorage.setItem('userId', data.user._id);
+        
         console.log(data.user);
         navigate('/dashboard');
       } else {

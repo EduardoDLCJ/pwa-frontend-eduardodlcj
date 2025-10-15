@@ -197,4 +197,18 @@ self.addEventListener('offline', () => {
   console.log('[SW] 📡 Sin conexión');
 });
 
-// SW cargado
+
+// Las notificaciones push
+self.addEventListener("push", (event) => {
+  console.log("[SW] Push recibido:", event);
+
+  const data = event.data ? event.data.json() : {};
+  const title = data.title || "Notificación PWA";
+  const options = {
+    body: data.body || "Tienes un nuevo mensaje",
+    icon: "/vite.svg", 
+    badge: "/vite.svg",
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
