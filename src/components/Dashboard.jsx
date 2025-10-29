@@ -290,6 +290,7 @@ const Dashboard = () => {
           alert('Sin conexión. Se guardó en cola y se enviará al reconectar.');
         } else {
           alert('Producto agregado al carrito');
+          window.location.reload()
         }
 
         // Mostrar notificación del navegador
