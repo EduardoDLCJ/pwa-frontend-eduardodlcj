@@ -140,6 +140,35 @@ self.addEventListener('message', (event) => {
     console.log('[SW] 📨 Solicitud de procesamiento de carritos pendientes');
     processPendingCarts();
   }
+
+  // Permite que el cliente solicite una notificación mostrada por el SW
+  if (event.data && event.data.type === 'SHOW_NOTIFICATION') {
+    const { title, options } = event.data;
+    if (title) {
+      event.waitUntil(self.registration.showNotification(title, options || {}));
+    }
+  }
+
+  // Atajo específico para notificación de "producto agregado"
+  if (event.data && event.data.type === 'SHOW_CART_ADDED') {
+    const { name, quantity } = event.data;
+    const q = Number(quantity) || 1;
+    const title = '🛒 Producto agregado al carrito';
+    const body = `${name || 'Producto'} (${q} unidad${q > 1 ? 'es' : ''}) se agregó a tu carrito`;
+    const options = {
+      body,
+      icon: '/icon-192.svg',
+      badge: '/icon-192.svg',
+      tag: 'cart-notification',
+      requireInteraction: false,
+      silent: false,
+      actions: [
+        { action: 'open-cart', title: 'Abrir carrito' }
+      ],
+      data: { type: 'cart', action: 'open-cart' }
+    };
+    event.waitUntil(self.registration.showNotification(title, options));
+  }
 });
 
 // Función para procesar la cola de carritos pendientes
@@ -173,6 +202,22 @@ async function processPendingCarts() {
             clients.forEach(client => {
               client.postMessage({ type: 'CART_SYNCED', userId: payload.userId });
             });
+
+            // Mostrar notificación desde el SW (funciona aunque la app esté cerrada)
+            try {
+              await self.registration.showNotification('✅ Carrito sincronizado', {
+                body: 'Los productos se han sincronizado correctamente con el servidor',
+                icon: '/icon-192.svg',
+                badge: '/icon-192.svg',
+                tag: 'cart-sync-notification',
+                requireInteraction: false,
+                silent: false,
+                actions: [
+                  { action: 'open-cart', title: 'Abrir carrito' }
+                ],
+                data: { type: 'cart-sync', action: 'open-cart' }
+              });
+            } catch (e) {}
           } else {
             console.warn('[SW] ⚠ Error enviando carrito:', response.status);
           }

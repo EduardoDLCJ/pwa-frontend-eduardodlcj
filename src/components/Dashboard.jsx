@@ -38,31 +38,19 @@ const Dashboard = () => {
     return false;
   };
 
-  // Función para mostrar notificación cuando se agrega al carrito
-  const showCartNotification = (phoneName, quantity = 1) => {
-    if ('Notification' in window && Notification.permission === 'granted') {
-      const notification = new Notification('🛒 Producto agregado al carrito', {
-        body: `${phoneName} (${quantity} unidad${quantity > 1 ? 'es' : ''}) se agregó a tu carrito`,
-        icon: '/icon-192.svg',
-        badge: '/icon-192.svg',
-        tag: 'cart-notification',
-        requireInteraction: false,
-        silent: false
+  // Función para solicitar al SW que muestre la notificación de carrito
+  const showCartNotification = async (phoneName, quantity = 1) => {
+    if (!('Notification' in window)) return;
+    if (Notification.permission !== 'granted') return;
+    try {
+      const reg = await navigator.serviceWorker?.ready;
+      const sw = reg?.active || navigator.serviceWorker?.controller;
+      sw?.postMessage({
+        type: 'SHOW_CART_ADDED',
+        name: phoneName,
+        quantity
       });
-
-      // Cerrar la notificación después de 3 segundos
-      setTimeout(() => {
-        notification.close();
-      }, 3000);
-
-      // Opcional: agregar click handler para abrir el carrito
-      notification.onclick = () => {
-        window.focus();
-        setIsCartOpen(true);
-        loadCart();
-        notification.close();
-      };
-    }
+    } catch {}
   };
 
 
@@ -359,21 +347,22 @@ const Dashboard = () => {
         // Recargar carrito cuando el SW sincronice exitosamente
         loadCart();
         
-        // Mostrar notificación de sincronización exitosa
-        if ('Notification' in window && Notification.permission === 'granted') {
-          const notification = new Notification('✅ Carrito sincronizado', {
-            body: 'Los productos se han sincronizado correctamente con el servidor',
-            icon: '/icon-192.svg',
-            badge: '/icon-192.svg',
-            tag: 'cart-sync-notification',
-            requireInteraction: false,
-            silent: false
-          });
-
-          setTimeout(() => {
-            notification.close();
-          }, 3000);
-        }
+        // Mostrar notificación de sincronización exitosa (siempre vía SW)
+        (async () => {
+          if ('Notification' in window && Notification.permission === 'granted') {
+            try {
+              const reg = await navigator.serviceWorker?.ready;
+              await reg?.showNotification('✅ Carrito sincronizado', {
+                body: 'Los productos se han sincronizado correctamente con el servidor',
+                icon: '/icon-192.svg',
+                badge: '/icon-192.svg',
+                tag: 'cart-sync-notification',
+                requireInteraction: false,
+                silent: false
+              });
+            } catch {}
+          }
+        })();
       }
     };
 
@@ -382,6 +371,18 @@ const Dashboard = () => {
     return () => {
       navigator.serviceWorker?.removeEventListener('message', handleMessage);
     };
+  }, []);
+
+  // Abrir carrito si el SW envía la señal tras click en notificación
+  useEffect(() => {
+    const openCartOnMessage = (event) => {
+      if (event.data && event.data.type === 'OPEN_CART') {
+        setIsCartOpen(true);
+        loadCart();
+      }
+    };
+    navigator.serviceWorker?.addEventListener('message', openCartOnMessage);
+    return () => navigator.serviceWorker?.removeEventListener('message', openCartOnMessage);
   }, []);
 
   const cartCount = useMemo(() => {
