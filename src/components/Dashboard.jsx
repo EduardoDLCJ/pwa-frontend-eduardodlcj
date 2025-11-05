@@ -24,8 +24,21 @@ const Dashboard = () => {
   const [isCartLoading, setIsCartLoading] = useState(false);
   const [cartError, setCartError] = useState('');
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  // Estados para panel de administración
+  const [isAdminPanelOpen, setIsAdminPanelOpen] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [selectedUsers, setSelectedUsers] = useState([]);
+  const [adminNotificationTitle, setAdminNotificationTitle] = useState('');
+  const [adminNotificationBody, setAdminNotificationBody] = useState('');
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminError, setAdminError] = useState('');
+  const [adminSuccess, setAdminSuccess] = useState('');
+  const [sendToAll, setSendToAll] = useState(false);
 
   const publicVapidKey = "BBR2W5ZrA8jgnh1dB_vbVAzu4PVS5t81sXyv_B-bdbkUCUd0d-ZglMsXTHcJTIRa7RY9erDAcm0NlkYkZnZ2DgY";
+  
+  // Verificar si el usuario es adminuser
+  const isAdmin = user?.username === 'adminuser';
 
   // Función para solicitar permisos de notificación
   const requestNotificationPermission = async () => {
@@ -410,6 +423,90 @@ const Dashboard = () => {
     return cart.items.reduce((sum, it) => sum + (Number(it.quantity) || 0), 0);
   }, [cart]);
 
+  // Funciones para panel de administración
+  const loadUsers = async () => {
+    try {
+      setAdminError('');
+      setAdminLoading(true);
+      const response = await fetch(`${BASE_URL}/api/admin/users?adminUsername=adminuser`);
+      const data = await response.json();
+      if (response.ok) {
+        setUsers(data.users || []);
+      } else {
+        setAdminError(data.message || 'Error al cargar usuarios');
+      }
+    } catch (err) {
+      setAdminError('Error de conexión al cargar usuarios');
+      console.error('Error cargando usuarios:', err);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
+  const handleOpenAdminPanel = () => {
+    setIsAdminPanelOpen(true);
+    loadUsers();
+  };
+
+  const handleToggleUser = (userId) => {
+    if (sendToAll) return; // No permitir selección si está enviando a todos
+    setSelectedUsers(prev => 
+      prev.includes(userId) 
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
+  };
+
+  const handleSendNotifications = async () => {
+    if (!adminNotificationTitle || !adminNotificationBody) {
+      setAdminError('Por favor completa el título y mensaje');
+      return;
+    }
+
+    if (!sendToAll && selectedUsers.length === 0) {
+      setAdminError('Por favor selecciona al menos un usuario o marca "Enviar a todos"');
+      return;
+    }
+
+    try {
+      setAdminError('');
+      setAdminSuccess('');
+      setAdminLoading(true);
+      
+      const response = await fetch(`${BASE_URL}/api/admin/send-notifications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          adminUsername: 'adminuser',
+          title: adminNotificationTitle,
+          body: adminNotificationBody,
+          userIds: sendToAll ? null : selectedUsers,
+          sendToAll: sendToAll
+        })
+      });
+
+      const data = await response.json();
+      
+      if (response.ok) {
+        setAdminSuccess(`Notificaciones enviadas: ${data.sent} exitosas, ${data.failed} fallidas`);
+        setAdminNotificationTitle('');
+        setAdminNotificationBody('');
+        setSelectedUsers([]);
+        setSendToAll(false);
+        setTimeout(() => {
+          setAdminSuccess('');
+        }, 5000);
+      } else {
+        setAdminError(data.message || 'Error al enviar notificaciones');
+      }
+    } catch (err) {
+      setAdminError('Error de conexión al enviar notificaciones');
+      console.error('Error enviando notificaciones:', err);
+    } finally {
+      setAdminLoading(false);
+    }
+  };
+
   if (!user) {
     return <div className="loading">Cargando...</div>;
   }
@@ -443,6 +540,16 @@ const Dashboard = () => {
           >
             {notificationsEnabled ? '🔔' : '🔕'} Notificaciones
           </button>
+          {isAdmin && (
+            <button
+              className="btn"
+              style={{ marginRight: '10px', backgroundColor: '#ff6b6b', color: 'white' }}
+              onClick={handleOpenAdminPanel}
+              title="Panel de administración"
+            >
+              ⚙️ Admin
+            </button>
+          )}
           <span>Bienvenido, {user.username}</span>
           <button onClick={handleLogout} className="logout-button">
             Cerrar Sesión
@@ -602,6 +709,128 @@ const Dashboard = () => {
                 )}
                 <div className="detail-actions" style={{ marginTop: '12px' }}>
                   <button className="btn" onClick={() => setIsCartOpen(false)}>Cerrar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Panel de Administración */}
+      {isAdminPanelOpen && (
+        <div className="modal" role="dialog" aria-modal="true">
+          <div className="modal-content" style={{ maxWidth: '800px', maxHeight: '90vh', overflow: 'auto' }}>
+            <button className="modal-close" aria-label="Cerrar" onClick={() => setIsAdminPanelOpen(false)}>×</button>
+            <div className="detail">
+              <div className="detail-body">
+                <h2>Panel de Administración - Enviar Notificaciones</h2>
+                
+                {adminError && <div className="error" style={{ marginBottom: '12px' }}>{adminError}</div>}
+                {adminSuccess && <div style={{ marginBottom: '12px', padding: '12px', backgroundColor: '#d4edda', color: '#155724', borderRadius: '4px' }}>{adminSuccess}</div>}
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+                    Título de la notificación:
+                  </label>
+                  <input
+                    type="text"
+                    value={adminNotificationTitle}
+                    onChange={(e) => setAdminNotificationTitle(e.target.value)}
+                    className="input"
+                    placeholder="Ej: Nueva oferta disponible"
+                    style={{ width: '100%', padding: '8px' }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+                    Mensaje:
+                  </label>
+                  <textarea
+                    value={adminNotificationBody}
+                    onChange={(e) => setAdminNotificationBody(e.target.value)}
+                    className="input"
+                    placeholder="Escribe el mensaje de la notificación..."
+                    rows="4"
+                    style={{ width: '100%', padding: '8px', resize: 'vertical' }}
+                  />
+                </div>
+
+                <div style={{ marginBottom: '20px' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={sendToAll}
+                      onChange={(e) => {
+                        setSendToAll(e.target.checked);
+                        if (e.target.checked) setSelectedUsers([]);
+                      }}
+                      style={{ marginRight: '8px' }}
+                    />
+                    <strong>Enviar a todos los usuarios con suscripciones</strong>
+                  </label>
+                </div>
+
+                {!sendToAll && (
+                  <div style={{ marginBottom: '20px' }}>
+                    <label style={{ display: 'block', marginBottom: '8px', fontWeight: 'bold' }}>
+                      Seleccionar usuarios ({selectedUsers.length} seleccionados):
+                    </label>
+                    {adminLoading ? (
+                      <div className="loading">Cargando usuarios...</div>
+                    ) : (
+                      <div style={{ maxHeight: '300px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '8px' }}>
+                        {users.length === 0 ? (
+                          <div className="empty">No hay usuarios registrados</div>
+                        ) : (
+                          users.map((u) => (
+                            <label
+                              key={u._id}
+                              style={{
+                                display: 'flex',
+                                alignItems: 'center',
+                                padding: '8px',
+                                cursor: 'pointer',
+                                backgroundColor: selectedUsers.includes(u._id) ? '#e3f2fd' : 'transparent',
+                                borderRadius: '4px',
+                                marginBottom: '4px'
+                              }}
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedUsers.includes(u._id)}
+                                onChange={() => handleToggleUser(u._id)}
+                                style={{ marginRight: '8px' }}
+                              />
+                              <div style={{ flex: 1 }}>
+                                <strong>{u.username}</strong> ({u.email})
+                                <div style={{ fontSize: '0.85em', color: '#666' }}>
+                                  {u.hasSubscriptions ? (
+                                    <span style={{ color: '#28a745' }}>
+                                      ✓ {u.subscriptionCount} dispositivo(s) suscrito(s)
+                                    </span>
+                                  ) : (
+                                    <span style={{ color: '#dc3545' }}>Sin suscripciones</span>
+                                  )}
+                                </div>
+                              </div>
+                            </label>
+                          ))
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="detail-actions" style={{ marginTop: '20px' }}>
+                  <button
+                    className="btn primary"
+                    onClick={handleSendNotifications}
+                    disabled={adminLoading || !adminNotificationTitle || !adminNotificationBody}
+                  >
+                    {adminLoading ? 'Enviando...' : '📤 Enviar Notificaciones'}
+                  </button>
+                  <button className="btn" onClick={() => setIsAdminPanelOpen(false)}>Cerrar</button>
                 </div>
               </div>
             </div>
