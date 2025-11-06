@@ -65,14 +65,9 @@ const Login = () => {
   };
 
 
-  const prueba = () => {
-    const request = window.indexedDB.open('pwa-db', 1);
-    request.onsuccess = (event) => {
-      const database = event.target.result;
-        const transaction = database.transaction('tabla', 'readwrite');
-        const store = transaction.objectStore('tabla');
-        const addRequest = store.add({ name: 'Prueba', age: 20 });    
-  }
+  const register = () => {
+
+    navigate('/register');
 }
 
   return (
@@ -112,13 +107,10 @@ const Login = () => {
             {loading ? 'Iniciando sesión...' : 'Iniciar Sesión'}
           </button>
 
-          <button type="button" className="login-button" onClick={prueba}>Prueba</button>
+          <button type="button" className="login-button" onClick={register}>Registrar</button>
         </form>
 
-        <div className="demo-credentials">
-          <p><strong>Conectado a tu API:</strong></p>
-          <p>Usa las credenciales de tu base de datos</p>
-        </div>
+       
       </div>
     </div>
   );
